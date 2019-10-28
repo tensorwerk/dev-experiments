@@ -1,5 +1,5 @@
 [package]
-name = "rust-file-tranfser"
+name = "rust-file-transfer"
 version = "0.1.0"
 authors = ["dxenonb"]
 edition = "2018"
