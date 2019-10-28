@@ -7,3 +7,5 @@ anything else needed during tensorwerk project development. This is an archive
 for pre alpha code. Look, but do not use directly.
 
 * Free software: Apache 2.0 license
+
+* https://tensorwerk.com
