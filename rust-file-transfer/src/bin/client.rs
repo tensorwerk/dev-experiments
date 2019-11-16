@@ -59,5 +59,7 @@ fn main() -> Result<(), i32> {
         return Err(-1);
     }
 
+    info!("File transfer complete.");
+
     Ok(())
 }

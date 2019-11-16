@@ -66,6 +66,17 @@ pub fn transfer_file<P: AsRef<Path>>(
     stream.write_u64::<LittleEndian>(digest.len() as u64)?;
     stream.write_all(digest)?;
 
+    let file_size = file.len();
+    let chunks = file_size / chunk_size;
+    let remainder = file_size % chunk_size;
+
+    // Write file size
+    stream.write_u64::<LittleEndian>(file_size as u64)?;
+    // Write chunk size
+    stream.write_u64::<LittleEndian>(chunk_size as u64)?;
+
+    stream.flush()?;
+
     Ok(())
 }
 
@@ -85,8 +96,18 @@ pub fn receive_file(addr: SocketAddr) -> Result<(), io::Error> {
     let mut digest = vec![0u8; digest_size as usize];
     stream.read_exact(&mut digest)?;
 
-    debug!("Hash size: {}", digest_size);
+    debug!("Read digest with size: {}", digest_size);
+
+    // Read file size
+    let file_size = stream.read_u64::<LittleEndian>()?;
+    // Read chunk size
+    let chunk_size = stream.read_u64::<LittleEndian>()?;
+
+    debug!("Read file and chunk size");
+
+    info!("Receiving a new file...");
     info!("Expecting hash: {:X?}", digest);
+    info!("Expecting {} bytes with chunk size {}", file_size, chunk_size);
 
     Ok(())
 }
