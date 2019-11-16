@@ -1,12 +1,29 @@
-use byteorder::{LittleEndian, WriteBytesExt};
-use ring::digest::{Context, SHA256};
+use byteorder::{
+    LittleEndian,
+    ReadBytesExt,
+    WriteBytesExt,
+};
+use ring::digest::{
+    Context,
+    SHA256,
+};
 
+use std::str;
 use std::mem;
 use std::fs;
 use std::path::Path;
 use std::io;
-use std::io::{Write, BufWriter};
-use std::net::{SocketAddr, TcpStream};
+use std::io::{
+    Read,
+    Write,
+    BufReader,
+    BufWriter,
+};
+use std::net::{
+    SocketAddr,
+    TcpStream,
+    TcpListener,
+};
 
 // TODO: impl Termination for a special error type
 
@@ -48,6 +65,28 @@ pub fn transfer_file<P: AsRef<Path>>(
     let digest: &[u8] = digest.as_ref();
     stream.write_u64::<LittleEndian>(digest.len() as u64)?;
     stream.write_all(digest)?;
+
+    Ok(())
+}
+
+pub fn receive_file(addr: SocketAddr) -> Result<(), io::Error> {
+    // TODO: Maybe move logging outside this function...
+    use log::{info, debug};
+
+    let server = TcpListener::bind(addr)?;
+
+    let (stream, _) = server.accept()?;
+    let mut stream = BufReader::new(stream);
+
+    assert_eq!(mem::size_of::<usize>(), 8);
+
+    // Read the digest
+    let digest_size = stream.read_u64::<LittleEndian>()?;
+    let mut digest = vec![0u8; digest_size as usize];
+    stream.read_exact(&mut digest)?;
+
+    debug!("Hash size: {}", digest_size);
+    info!("Expecting hash: {:X?}", digest);
 
     Ok(())
 }
