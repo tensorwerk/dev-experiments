@@ -1,0 +1,17 @@
+[package]
+name = "rust-file-transfer"
+version = "0.1.0"
+authors = ["dxenonb"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = "0.1.22"
+bytes = "0.4.12"
+futures = "0.1.29"
+ring = "0.16.9"
+log = "0.4.8"
+env_logger = "0.7.1"
+byteorder = '1.3.2'
+md5 = "0.7.0"
