@@ -1,5 +1,9 @@
 *.py[cod]
 
+/data
+
+data.zip
+
 # C extensions
 *.so
 

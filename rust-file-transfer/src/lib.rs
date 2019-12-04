@@ -25,6 +25,9 @@ use std::net::{
     TcpListener,
 };
 
+use log::info;
+use md5;
+
 // TODO: impl Termination for a special error type
 
 pub fn get_required_arg(
@@ -51,53 +54,73 @@ pub fn transfer_file<P: AsRef<Path>>(
 
     let file = fs::read(path)?;
 
-    let digest = {
-        let mut context = Context::new(&SHA256);
-        context.update(&file[..]);
-        context.finish()
-    };
+    let mut now = std::time::Instant::now();
 
-    let stream = TcpStream::connect(addr)?;
-    let mut stream = BufWriter::new(stream);
+    let digest = md5::compute(&file[..]);
 
-    // Write digest size and digest content
-    let digest: &[u8] = digest.as_ref();
-    stream.write_u64::<LittleEndian>(digest.len() as u64)?;
-    stream.write_all(digest)?;
+    let mut duration = now.elapsed();
+    let mut seconds = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+    info!("Hash SHA 256 of {} bytes took {} sec.", file.len(), seconds);
 
-    let file_size = file.len();
-    let chunks = file_size / chunk_size;
-    let remainder = file_size % chunk_size;
+    now = std::time::Instant::now();
 
-    stream.write_u64::<LittleEndian>(file_size as u64)?;
-    stream.write_u64::<LittleEndian>(chunk_size as u64)?;
+        let stream = TcpStream::connect(addr)?;
+        let mut stream = BufWriter::new(stream);
 
-    stream.flush()?;
+    duration = now.elapsed();
+    seconds = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+    info!("Opening the connection took {} sec.", seconds);
+
+    now = std::time::Instant::now();
+
+        // Write digest size and digest content
+        let digest: &[u8] = digest.as_ref();
+        stream.write_u64::<LittleEndian>(digest.len() as u64)?;
+        stream.write_all(digest)?;
+
+    duration = now.elapsed();
+    seconds = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+    info!("Sending digest took {} sec.", seconds);
+
+    now = std::time::Instant::now();
+
+        let file_size = file.len();
+        let chunks = file_size / chunk_size;
+        let remainder = file_size % chunk_size;
+
+        stream.write_u64::<LittleEndian>(file_size as u64)?;
+        stream.write_u64::<LittleEndian>(chunk_size as u64)?;
+
+        stream.flush()?;
 
         // TODO: Perhaps the server should determine the chunk size, and client's chunk size is only
-    // the maximum supported?
+        // the maximum supported?
 
-    // Write the file to the socket
-    let mut buffer = &file[..];
+        // Write the file to the socket
+        let mut buffer = &file[..];
 
-    for _ in 0..chunks {
-        stream.write_all(&buffer[..chunk_size])?;
-        buffer = &buffer[chunk_size..];
-        stream.flush()?;
-    }
+        for _ in 0..chunks {
+            stream.write_all(&buffer[..chunk_size])?;
+            buffer = &buffer[chunk_size..];
+            stream.flush()?;
+        }
 
-    if remainder != 0 {
-        stream.write_all(buffer)?;
-        // TODO: pad?
-        stream.flush()?;
-    }
+        if remainder != 0 {
+            stream.write_all(buffer)?;
+            // TODO: pad?
+            stream.flush()?;
+        }
+    
+    duration = now.elapsed();
+    seconds = duration.as_secs() as f64 + duration.subsec_nanos() as f64 * 1e-9;
+    info!("Sending the file took {} sec.", seconds);
 
     Ok(())
 }
 
 pub fn receive_file(addr: SocketAddr) -> Result<(), io::Error> {
     // TODO: Maybe move logging outside this function...
-    use log::{info, debug, error};
+    use log::{debug, error};
 
     assert_eq!(mem::size_of::<usize>(), 8);
 
@@ -130,19 +153,18 @@ pub fn receive_file(addr: SocketAddr) -> Result<(), io::Error> {
     info!("Expecting hash: {:X?}", &expected_digest);
 
     // hash the file
-    let actual_digest = {
-        let mut context = Context::new(&SHA256);
-        context.update(&buffer[..]);
-        context.finish()
-    };
+    let actual_digest = md5::compute(&buffer[..]);
 
-    if actual_digest.as_ref() == &expected_digest[..] {
+    if actual_digest.0 == &expected_digest[..] {
         info!("File received and verification successful!");
+        info!("Expected:      {:X?}", &expected_digest);
+        info!("Actual digest: {:x}", actual_digest);
     } else {
         error!("File verification failed!");
         error!("Expected:      {:X?}", &expected_digest);
-        error!("Actual digest: {:X?}", &actual_digest);
+        error!("Actual digest: {:x}", actual_digest);
     }
 
     Ok(())
 }
+

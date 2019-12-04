@@ -25,6 +25,8 @@ fn main() -> Result<(), i32> {
         .format_timestamp(None)
         .format_module_path(false)
         .init();
+    
+    info!("Starting server...");
 
     let mut args = env::args().skip(1);
 
